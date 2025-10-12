@@ -1,6 +1,24 @@
 const express = require('express');
 const router = express.Router();
 
+// Test database connection
+router.get('/test-db', async (req, res) => {
+  const db = req.app.locals.db;
+  try {
+    const result = await db.query('SELECT NOW()');
+    res.json({
+      success: true,
+      message: 'Database connection successful',
+      timestamp: result.rows[0].now
+    });
+  } catch (error) {
+    res.status(500).json({
+      error: 'Database connection failed',
+      details: error.message
+    });
+  }
+});
+
 // Initialize database with schema and sample data
 router.post('/init-db', async (req, res) => {
   const db = req.app.locals.db;
