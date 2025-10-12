@@ -178,6 +178,19 @@ router.get('/check-wallet/:walletAddress', async (req, res) => {
 
     const user = result.rows[0];
 
+    // Auto-sync: Update leaderboard entries with current player_name from users table
+    // This ensures leaderboard always shows the correct username
+    try {
+      await db.query(
+        'UPDATE leaderboard SET player_name = $1 WHERE user_id = $2',
+        [user.player_name, walletAddress.toLowerCase()]
+      );
+      console.log(`✅ Auto-synced leaderboard name for ${user.username} (${walletAddress.substring(0, 8)}...)`);
+    } catch (syncError) {
+      // Don't fail the request if sync fails, just log it
+      console.warn('⚠️ Failed to auto-sync leaderboard name:', syncError.message);
+    }
+
     res.json({
       exists: true,
       userId: user.id,
