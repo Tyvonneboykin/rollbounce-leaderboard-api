@@ -70,7 +70,7 @@ function isTimestampValid(message) {
 router.post('/create-account', async (req, res) => {
   try {
     const db = req.app.locals.db;
-    const { walletAddress, username, signature, message } = req.body;
+    const { walletAddress, username, signature, message, isDevelopmentMode = false } = req.body;
 
     // Validation
     if (!walletAddress || !username || !signature || !message) {
@@ -88,14 +88,20 @@ router.post('/create-account', async (req, res) => {
       return res.status(400).json({ error: usernameCheck.error });
     }
 
-    // Verify signature timestamp
-    if (!isTimestampValid(message)) {
-      return res.status(400).json({ error: 'Signature expired. Please try again.' });
-    }
+    // PRODUCTION MODE: Verify signature
+    if (!isDevelopmentMode) {
+      // Verify signature timestamp
+      if (!isTimestampValid(message)) {
+        return res.status(400).json({ error: 'Signature expired. Please try again.' });
+      }
 
-    // Verify signature
-    if (!verifySignature(walletAddress, message, signature)) {
-      return res.status(400).json({ error: 'Invalid signature. Wallet verification failed.' });
+      // Verify signature
+      if (!verifySignature(walletAddress, message, signature)) {
+        return res.status(400).json({ error: 'Invalid signature. Wallet verification failed.' });
+      }
+    } else {
+      // DEVELOPMENT MODE: Log warning and skip verification
+      console.warn('⚠️ DEV MODE: Skipping signature verification for account creation');
     }
 
     // Check if wallet already has an account
