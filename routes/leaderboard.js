@@ -25,8 +25,24 @@ router.get('/top100', async (req, res) => {
       LIMIT 100
     `);
 
+    // Transform response for Unity JsonUtility compatibility
+    // Unity requires exact type matches and camelCase field names
+    const entries = result.rows.map(row => ({
+      rank: parseInt(row.rank) || 0,                    // Convert string → int
+      userId: row.user_id || '',                         // snake_case → camelCase
+      playerName: row.player_name || 'Player',           // snake_case → camelCase
+      score: parseInt(row.score) || 0,                   // Ensure int
+      maxCombo: parseInt(row.max_combo) || 0,            // snake_case → camelCase + int
+      timeSurvived: parseFloat(row.time_survived) || 0,  // snake_case → camelCase + float
+      totalBounces: parseInt(row.total_bounces) || 0,    // snake_case → camelCase + int
+      walletAddress: row.wallet_address || '',           // snake_case → camelCase
+      nftSkinId: row.nft_skin_id || '',                  // snake_case → camelCase, null → empty string
+      isVerified: row.is_verified === true,              // snake_case → camelCase + bool
+      timestamp: parseInt(row.timestamp) || 0            // Convert string → long (int in JS)
+    }));
+
     res.json({
-      entries: result.rows,
+      entries: entries,
       lastUpdated: Date.now()
     });
   } catch (error) {
@@ -165,7 +181,23 @@ router.get('/player/:userId', async (req, res) => {
       return res.status(404).json({ error: 'Player not found' });
     }
 
-    res.json(result.rows[0]);
+    // Transform response for Unity JsonUtility compatibility
+    const row = result.rows[0];
+    const player = {
+      rank: parseInt(row.rank) || 0,
+      userId: row.user_id || '',
+      playerName: row.player_name || 'Player',
+      score: parseInt(row.score) || 0,
+      maxCombo: parseInt(row.max_combo) || 0,
+      timeSurvived: parseFloat(row.time_survived) || 0,
+      totalBounces: parseInt(row.total_bounces) || 0,
+      walletAddress: row.wallet_address || '',
+      nftSkinId: row.nft_skin_id || '',
+      isVerified: row.is_verified === true,
+      timestamp: parseInt(row.timestamp) || 0
+    };
+
+    res.json(player);
   } catch (error) {
     console.error('❌ Error fetching player:', error);
     res.status(500).json({ error: 'Failed to fetch player data' });
