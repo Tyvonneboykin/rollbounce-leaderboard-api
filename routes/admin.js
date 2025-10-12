@@ -92,4 +92,67 @@ router.post('/init-db', async (req, res) => {
   }
 });
 
+// Initialize users table
+router.post('/init-users-table', async (req, res) => {
+  const db = req.app.locals.db;
+
+  try {
+    // Create users table
+    await db.query(`
+      CREATE TABLE IF NOT EXISTS users (
+        id SERIAL PRIMARY KEY,
+        wallet_address VARCHAR(42) UNIQUE NOT NULL,
+        username VARCHAR(50) UNIQUE NOT NULL,
+        player_name VARCHAR(100) NOT NULL,
+        is_verified BOOLEAN DEFAULT FALSE,
+        created_at TIMESTAMP DEFAULT NOW(),
+        updated_at TIMESTAMP DEFAULT NOW()
+      )
+    `);
+
+    // Create indexes
+    await db.query('CREATE INDEX IF NOT EXISTS idx_wallet_users ON users(wallet_address)');
+    await db.query('CREATE INDEX IF NOT EXISTS idx_username ON users(username)');
+
+    // Create trigger function for lowercase enforcement
+    await db.query(`
+      CREATE OR REPLACE FUNCTION lowercase_wallet_address()
+      RETURNS TRIGGER AS $$
+      BEGIN
+          NEW.wallet_address = LOWER(NEW.wallet_address);
+          NEW.username = LOWER(NEW.username);
+          RETURN NEW;
+      END;
+      $$ LANGUAGE plpgsql
+    `);
+
+    // Create trigger
+    await db.query(`
+      DROP TRIGGER IF EXISTS ensure_lowercase_wallet ON users;
+      CREATE TRIGGER ensure_lowercase_wallet
+          BEFORE INSERT OR UPDATE ON users
+          FOR EACH ROW
+          EXECUTE FUNCTION lowercase_wallet_address()
+    `);
+
+    // Check if table has data
+    const countResult = await db.query('SELECT COUNT(*) FROM users');
+    const userCount = countResult.rows[0].count;
+
+    res.json({
+      success: true,
+      message: 'Users table created successfully',
+      userCount: parseInt(userCount),
+      timestamp: new Date().toISOString()
+    });
+
+  } catch (error) {
+    console.error('Error creating users table:', error);
+    res.status(500).json({
+      error: 'Failed to create users table',
+      details: error.message
+    });
+  }
+});
+
 module.exports = router;
