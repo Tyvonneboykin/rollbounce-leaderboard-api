@@ -155,4 +155,34 @@ router.post('/init-users-table', async (req, res) => {
   }
 });
 
+// Reset leaderboard (delete all entries)
+router.post('/reset-leaderboard', async (req, res) => {
+  const db = req.app.locals.db;
+
+  try {
+    // Delete all leaderboard entries
+    const result = await db.query('DELETE FROM leaderboard');
+    const deletedCount = result.rowCount;
+
+    // Get remaining count (should be 0)
+    const countResult = await db.query('SELECT COUNT(*) FROM leaderboard');
+    const remainingCount = countResult.rows[0].count;
+
+    res.json({
+      success: true,
+      message: 'Leaderboard reset successfully',
+      deletedEntries: deletedCount,
+      remainingEntries: parseInt(remainingCount),
+      timestamp: new Date().toISOString()
+    });
+
+  } catch (error) {
+    console.error('Error resetting leaderboard:', error);
+    res.status(500).json({
+      error: 'Failed to reset leaderboard',
+      details: error.message
+    });
+  }
+});
+
 module.exports = router;
