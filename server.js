@@ -50,6 +50,29 @@ app.get('/api/health', (req, res) => {
   });
 });
 
+// Admin route to initialize database
+app.post('/api/admin/init-db', async (req, res) => {
+  try {
+    const fs = require('fs');
+    const path = require('path');
+    const initSQL = fs.readFileSync(path.join(__dirname, 'db', 'init.sql'), 'utf8');
+
+    // Execute the SQL
+    await pool.query(initSQL);
+
+    res.json({
+      success: true,
+      message: 'Database initialized successfully'
+    });
+  } catch (error) {
+    console.error('Error initializing database:', error);
+    res.status(500).json({
+      error: 'Failed to initialize database',
+      details: error.message
+    });
+  }
+});
+
 // Leaderboard routes
 const leaderboardRoutes = require('./routes/leaderboard');
 app.use('/api/leaderboard', leaderboardRoutes);
