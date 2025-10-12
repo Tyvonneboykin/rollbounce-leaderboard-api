@@ -48,7 +48,8 @@ router.post('/submit', async (req, res) => {
       timeSurvived = 0,
       totalBounces = 0,
       walletAddress = null,
-      nftSkinId = null
+      nftSkinId = null,
+      isVerified = false
     } = req.body;
 
     // Validation
@@ -89,9 +90,10 @@ router.post('/submit', async (req, res) => {
             total_bounces = $5,
             wallet_address = COALESCE($6, wallet_address),
             nft_skin_id = COALESCE($7, nft_skin_id),
+            is_verified = COALESCE($8, is_verified),
             updated_at = NOW()
-          WHERE user_id = $8
-        `, [playerName, score, maxCombo, timeSurvived, totalBounces, walletAddress, nftSkinId, userId]);
+          WHERE user_id = $9
+        `, [playerName, score, maxCombo, timeSurvived, totalBounces, walletAddress, nftSkinId, isVerified, userId]);
 
         console.log(`✅ Updated score for ${playerName}: ${currentScore} → ${score}`);
       } else {
@@ -101,11 +103,11 @@ router.post('/submit', async (req, res) => {
       // New user - insert
       await db.query(`
         INSERT INTO leaderboard
-        (user_id, player_name, score, max_combo, time_survived, total_bounces, wallet_address, nft_skin_id)
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
-      `, [userId, playerName, score, maxCombo, timeSurvived, totalBounces, walletAddress, nftSkinId]);
+        (user_id, player_name, score, max_combo, time_survived, total_bounces, wallet_address, nft_skin_id, is_verified)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+      `, [userId, playerName, score, maxCombo, timeSurvived, totalBounces, walletAddress, nftSkinId, isVerified]);
 
-      console.log(`✅ New entry created for ${playerName}: ${score}`);
+      console.log(`✅ New entry created for ${playerName}: ${score} (verified: ${isVerified})`);
     }
 
     // Get player's new rank
