@@ -397,4 +397,61 @@ router.put('/update-username', async (req, res) => {
   }
 });
 
+/**
+ * PUT /api/auth/update-guest-username
+ * Update username for guest account (no wallet/signature required)
+ */
+router.put('/update-guest-username', async (req, res) => {
+  try {
+    const db = req.app.locals.db;
+    const { userId, newUsername } = req.body;
+
+    // Validation
+    if (!userId || !newUsername) {
+      return res.status(400).json({ error: 'Missing required fields' });
+    }
+
+    // Validate username
+    const usernameCheck = validateUsername(newUsername);
+    if (!usernameCheck.valid) {
+      return res.status(400).json({ error: usernameCheck.error });
+    }
+
+    // Check if new username is taken (excluding current user)
+    const existingUsername = await db.query(
+      'SELECT id FROM users WHERE username = $1 AND id != $2',
+      [newUsername.toLowerCase(), userId]
+    );
+
+    if (existingUsername.rows.length > 0) {
+      return res.status(409).json({ error: 'Username already taken' });
+    }
+
+    // Update username (only for guest accounts with null wallet_address)
+    const result = await db.query(
+      `UPDATE users
+       SET username = $1, player_name = $2, updated_at = NOW()
+       WHERE id = $3 AND wallet_address IS NULL
+       RETURNING username, player_name`,
+      [newUsername.toLowerCase(), newUsername, userId]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Guest account not found' });
+    }
+
+    console.log(`✅ Guest username updated: ${userId.substring(0, 8)}... → ${newUsername}`);
+
+    res.json({
+      success: true,
+      username: result.rows[0].username,
+      playerName: result.rows[0].player_name
+    });
+
+  } catch (error) {
+    console.error('❌ Error updating guest username:', error);
+    res.status(500).json({ error: 'Failed to update username' });
+  }
+});
+
 module.exports = router;
