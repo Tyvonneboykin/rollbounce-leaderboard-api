@@ -151,6 +151,65 @@ router.post('/create-account', async (req, res) => {
 });
 
 /**
+ * POST /api/auth/create-guest-account
+ * Create a guest account with just a username (no wallet required)
+ */
+router.post('/create-guest-account', async (req, res) => {
+  try {
+    const db = req.app.locals.db;
+    const { username } = req.body;
+
+    // Validation
+    if (!username) {
+      return res.status(400).json({ error: 'Username is required' });
+    }
+
+    // Validate username
+    const usernameCheck = validateUsername(username);
+    if (!usernameCheck.valid) {
+      return res.status(400).json({ error: usernameCheck.error });
+    }
+
+    // Check if username is taken
+    const existingUsername = await db.query(
+      'SELECT id FROM users WHERE username = $1',
+      [username.toLowerCase()]
+    );
+
+    if (existingUsername.rows.length > 0) {
+      return res.status(409).json({ error: 'Username already taken' });
+    }
+
+    // Generate GUID for guest user ID
+    const { v4: uuidv4 } = require('uuid');
+    const guestUserId = uuidv4();
+
+    // Create guest account (no wallet address)
+    const result = await db.query(
+      `INSERT INTO users (id, wallet_address, username, player_name, is_verified)
+       VALUES ($1, $2, $3, $4, $5)
+       RETURNING id, username, player_name`,
+      [guestUserId, null, username.toLowerCase(), username, false]
+    );
+
+    const newUser = result.rows[0];
+
+    console.log(`✅ Guest account created: ${username} (${guestUserId})`);
+
+    res.json({
+      success: true,
+      userId: newUser.id,
+      username: newUser.username,
+      playerName: newUser.player_name
+    });
+
+  } catch (error) {
+    console.error('❌ Error creating guest account:', error);
+    res.status(500).json({ error: 'Failed to create guest account' });
+  }
+});
+
+/**
  * GET /api/auth/check-wallet/:walletAddress
  * Check if wallet has an existing account
  */
